@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Share Code</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="lzma.js"></script>
+  <script>
+    var matches;
+    var lzma = new LZMA("lzma_worker.js");
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById("plaintext").focus();
+
+      document.getElementById("plaintext").addEventListener("keydown", function(e) {
+        console.log(e.key);
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const textarea = e.target;
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+
+          textarea.value = textarea.value.substring(0, start) + "    " + textarea.value.substring(end);
+          textarea.selectionStart = textarea.selectionEnd = start + 4;
+        }
+      });
+
+      if (matches = /(?:^|\;)invert\=([01])(?:\;|$)/.exec(document.cookie)) {
+        if (matches[1] === '1') {
+          document.body.classList.add("invert");
+        }
+      }
+
+      var base64 = location.hash.substr(1);
+      if (base64.length == 0) return;
+
+      if (!fetch) {
+        alert("Your browser does not support this page. Sorry! :(");
+        return;
+      }
+
+      fetch("data:application/octet-stream;base64," + base64).then(r => r.blob()).then(function(blob) {
+        var reader = new FileReader();
+        reader.onload = function() {
+          var compressed_data = Array.from(new Uint8Array(reader.result));
+          lzma.decompress(compressed_data, function(plaintext, error) {
+            if (error) {
+              alert("Failed to decompress data: " + error);
+              return;
+            }
+
+            document.getElementById("plaintext").value = plaintext;
+          });
+        };
+        reader.readAsArrayBuffer(blob);
+      });
+    });
+
+
+
+    function url_generate(format) {
+      var plaintext = document.getElementById("plaintext").value;
+      lzma.compress(plaintext, 1, function(compressed, error) {
+        if (error) {
+          alert("Failed to compress data: " + error);
+          return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function() {
+          var base64 = reader.result.substr(reader.result.indexOf(",") + 1);
+          var url = "https://" + location.host + location.pathname + "#" + base64;
+          var result;
+          if (format === 'markdown') {
+            result = "[paste](" + url + ")";
+          } else {
+            result = url;
+          }
+          text_offer(result);
+        };
+        reader.readAsDataURL(new Blob([new Uint8Array(compressed)]));
+      });
+    }
+
+    function text_offer(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("Link copied to clipboard!");
+      }).catch(() => {
+        alert("Failed to copy the link!");
+      });
+    }
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('show');
+      }, 100);
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function invert() {
+      var pref = document.body.classList.contains("invert") ? 0 : 1;
+      document.cookie = "invert=" + pref + ";max-age=63072000";
+      document.body.classList[pref ? "add" : "remove"]("invert");
+    }
+  </script>
+</head>
+<body>
+  <div id="toolbar">
+    <button onclick="url_generate('raw')">Generate URL</button>
+    <button onclick="url_generate('markdown')">Generate Markdown Link</button>
+    <button onclick="invert()">Invert Colors</button>
+  </div>
+
+  <div id="plaintext-wrapper">
+    <textarea id="plaintext" spellcheck="false" placeholder="Paste or write your text here..."></textarea>
+  </div>
+</body>
+</html>
