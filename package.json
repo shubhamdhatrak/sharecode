@@ -4,5 +4,12 @@
     "lzma": "^2.3.2",
     "path-browserify": "^1.0.1",
     "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.2.0"
+  },
+  "homepage": "https://shubhamdhatrak.github.io/sharecode",
+  "scripts": {
+    "deploy": "gh-pages -d ui"
   }
 }
